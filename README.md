@@ -19,7 +19,7 @@ import { RateLimiter } from '@hoajs/cloudflare-rate-limit'
 const app = new Hoa()
 
 app.use(RateLimiter({
-  binding: 'RATE_LIMITER', // or (ctx) => ctx.env.RATE_LIMITER
+  binding: 'RATE_LIMITER',
   keyGenerator: (ctx) => ctx.req.ip
 }))
 
@@ -39,7 +39,7 @@ import { KVRateLimiter } from '@hoajs/cloudflare-rate-limit'
 const app = new Hoa()
 
 app.use(KVRateLimiter({
-  binding: 'KV', // or (ctx) => ctx.env.KV
+  binding: 'KV',
   prefix: 'ratelimit:',
   limit: 3,
   period: 60,

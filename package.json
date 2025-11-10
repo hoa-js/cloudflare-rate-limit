@@ -1,6 +1,6 @@
 {
   "name": "@hoajs/cloudflare-rate-limit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cloudflare rate limiter middleware for Hoa.",
   "main": "./dist/cjs/index.js",
   "type": "module",
@@ -21,6 +21,7 @@
   ],
   "scripts": {
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "build": "tsup",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "prepublishOnly": "npm run lint && npm run test && npm run build",
@@ -45,8 +46,8 @@
   "devDependencies": {
     "@commitlint/cli": "20.1.0",
     "@commitlint/config-conventional": "20.0.0",
-    "eslint": "9.37.0",
-    "globals": "16.4.0",
+    "eslint": "9.39.1",
+    "globals": "16.5.0",
     "hoa": "*",
     "husky": "9.1.7",
     "jest": "30.2.0",
@@ -57,7 +58,7 @@
     "hoa": "*"
   },
   "dependencies": {
-    "cloudflare-kv-rate-limit": "~1.0.1"
+    "cloudflare-kv-rate-limit": "~2.0.0"
   },
   "engines": {
     "node": ">=20"

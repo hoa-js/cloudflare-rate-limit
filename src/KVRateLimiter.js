@@ -1,9 +1,9 @@
 import CloudflareKVRateLimiter from 'cloudflare-kv-rate-limit'
-import { assert, getBinding } from './utils.js'
+import { assert } from './utils.js'
 
 /**
  * @typedef {Object} KVRateLimiterOptions
- * @property {string | ((ctx: HoaContext) => KV)} binding - KV namespace name (string) or factory function returning KV for the current ctx
+ * @property {string} binding - KV namespace name
  * @property {string} [prefix="ratelimit:"] - KV key prefix
  * @property {number} limit - Max requests per period
  * @property {number} period - Period length in seconds
@@ -35,7 +35,7 @@ export function KVRateLimiter (options = {}) {
   period = parseInt(period)
   interval = parseInt(interval)
 
-  assert(typeof binding === 'string' || typeof binding === 'function', 'options.binding must be a string or a function')
+  assert(typeof binding === 'string', 'options.binding must be a string')
   assert(typeof prefix === 'string' && prefix.length > 0, 'options.prefix must be a non-empty string')
   assert(Number.isFinite(limit) && limit >= 1, 'options.limit must be >= 1')
   assert(Number.isFinite(period) && period >= 60, 'options.period must be >= 60 seconds (Cloudflare KV TTL minimum)')
@@ -54,10 +54,7 @@ export function KVRateLimiter (options = {}) {
       return
     }
 
-    const kvBinding = getBinding(ctx, binding)
-    assert(kvBinding && typeof kvBinding.get === 'function' && typeof kvBinding.put === 'function', 'options.binding must be a KV namespace name or return a Cloudflare KV namespace exposing get() and put()')
-
-    const ratelimiter = CloudflareKVRateLimiter({ store: kvBinding, prefix, limit, period, interval })
+    const ratelimiter = CloudflareKVRateLimiter({ binding, prefix, limit, period, interval })
 
     const { success, remaining, reset } = await ratelimiter(key)
 

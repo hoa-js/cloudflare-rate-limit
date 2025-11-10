@@ -11,9 +11,8 @@ function createMockKV () {
 describe('KVRateLimiter middleware validations', () => {
   test('throws when interval > period', async () => {
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const binding = () => createMockKV()
     const options = {
-      binding,
+      binding: 'KV',
       prefix: 'ratelimit:',
       limit: 5,
       period: 60,
@@ -25,9 +24,8 @@ describe('KVRateLimiter middleware validations', () => {
 
   test('returns middleware when interval === period', async () => {
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const binding = () => createMockKV()
     const options = {
-      binding,
+      binding: 'KV',
       prefix: 'ratelimit:',
       limit: 5,
       period: 60,
@@ -40,11 +38,10 @@ describe('KVRateLimiter middleware validations', () => {
 
   test('skips rate limiting when keyGenerator returns falsy', async () => {
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const binding = () => createMockKV()
     const next = jest.fn(async () => {})
     const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
     const mw = KVRateLimiter({
-      binding,
+      binding: 'KV',
       prefix: 'ratelimit:',
       limit: 5,
       period: 60,
@@ -63,8 +60,9 @@ describe('KVRateLimiter header semantics', () => {
       default: () => async () => ({ success: false, remaining: 0, reset: 5 })
     }))
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const binding = () => createMockKV()
+    const mockKV = createMockKV()
     const ctx = {
+      env: { KV: mockKV },
       req: {},
       res: { set: () => {} },
       thrown: null,
@@ -72,7 +70,7 @@ describe('KVRateLimiter header semantics', () => {
     }
     const next = jest.fn(async () => {})
     const mw = KVRateLimiter({
-      binding,
+      binding: 'KV',
       prefix: 'ratelimit:',
       limit: 5,
       period: 60,
@@ -93,16 +91,17 @@ describe('KVRateLimiter header semantics', () => {
       default: () => async () => ({ success: true, remaining: 4, reset: 10 })
     }))
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const binding = () => createMockKV()
+    const mockKV = createMockKV()
     let headersSet = null
     const ctx = {
+      env: { KV: mockKV },
       req: {},
       res: { set: (h) => { headersSet = h } },
       throw: () => {}
     }
     const next = jest.fn(async () => {})
     const mw = KVRateLimiter({
-      binding,
+      binding: 'KV',
       prefix: 'ratelimit:',
       limit: 5,
       period: 60,
@@ -124,16 +123,17 @@ describe('KVRateLimiter header semantics', () => {
       default: () => async () => ({ success: true, remaining: 3, reset: 2 })
     }))
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const binding = () => createMockKV()
+    const mockKV = createMockKV()
     let headersSet = null
     const ctx = {
+      env: { KV: mockKV },
       req: {},
       res: { set: (h) => { headersSet = h } },
       throw: () => {}
     }
     const next = async () => { throw new Error('boom') }
     const mw = KVRateLimiter({
-      binding,
+      binding: 'KV',
       prefix: 'ratelimit:',
       limit: 5,
       period: 60,
@@ -152,7 +152,7 @@ describe('KVRateLimiter header semantics', () => {
 
 describe('KVRateLimiter invalid option branches', () => {
   const baseOptions = {
-    binding: () => createMockKV(),
+    binding: 'KV',
     prefix: 'ratelimit:',
     limit: 5,
     period: 60,
@@ -161,7 +161,7 @@ describe('KVRateLimiter invalid option branches', () => {
   }
 
   test.each([
-    ['binding', { ...baseOptions, binding: null }, 'options.binding must be a string or a function'],
+    ['binding', { ...baseOptions, binding: null }, 'options.binding must be a string'],
     ['prefix (empty)', { ...baseOptions, prefix: '' }, 'options.prefix must be a non-empty string'],
     ['prefix (null)', { ...baseOptions, prefix: /** @type {any} */ (null) }, 'options.prefix must be a non-empty string'],
     ['limit (< 1)', { ...baseOptions, limit: 0 }, 'options.limit must be >= 1'],
@@ -177,26 +177,6 @@ describe('KVRateLimiter invalid option branches', () => {
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
     expect(() => KVRateLimiter(options)).toThrow(expectedError)
   })
-
-  test.each([
-    ['null store', () => null],
-    ['lacks put', () => ({ get: async () => null })],
-    ['lacks get', () => ({ put: async () => {} })]
-  ])('throws when binding returns invalid KV: %s', async (desc, bindingFn) => {
-    const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const options = {
-      binding: bindingFn,
-      prefix: 'ratelimit:',
-      limit: 5,
-      period: 60,
-      interval: 0,
-      keyGenerator: () => 'ip'
-    }
-    const mw = KVRateLimiter(options)
-    const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
-    const next = jest.fn(async () => {})
-    await expect(mw(ctx, next)).rejects.toThrow('options.binding must be a KV namespace name or return a Cloudflare KV namespace exposing get() and put()')
-  })
 })
 
 describe('KVRateLimiter options validation', () => {
@@ -208,7 +188,7 @@ describe('KVRateLimiter options validation', () => {
   test('throws when called without options', async () => {
     jest.resetModules()
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    expect(() => KVRateLimiter()).toThrow('options.binding must be a string or a function')
+    expect(() => KVRateLimiter()).toThrow('options.binding must be a string')
   })
 })
 
@@ -220,16 +200,16 @@ describe('KVRateLimiter default options branches', () => {
       default: (opts) => { capturedOpts = opts; return async () => ({ success: true, remaining: 4, reset: 1 }) }
     }))
     const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const binding = () => createMockKV()
+    const mockKV = createMockKV()
     const mw = KVRateLimiter({
-      binding,
+      binding: 'KV',
       // prefix omitted
       limit: 5,
       period: 60,
       // interval omitted
       keyGenerator: () => 'ip'
     })
-    const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
+    const ctx = { env: { KV: mockKV }, req: {}, res: { set: () => {} }, throw: () => {} }
     const next = jest.fn(async () => {})
     await mw(ctx, next)
     expect(capturedOpts.prefix).toBe('ratelimit:')
@@ -261,25 +241,5 @@ describe('KVRateLimiter binding as string', () => {
     })
     await mw(ctx, next)
     expect(next).toHaveBeenCalledTimes(1)
-  })
-
-  test('throws when string binding not found in ctx.env', async () => {
-    jest.resetModules()
-    const { KVRateLimiter } = await import('../src/KVRateLimiter.js')
-    const ctx = {
-      env: {},
-      req: {},
-      res: { set: () => {} },
-      throw: () => {}
-    }
-    const next = jest.fn(async () => {})
-    const mw = KVRateLimiter({
-      binding: 'NONEXISTENT_KV',
-      prefix: 'test:',
-      limit: 5,
-      period: 60,
-      keyGenerator: () => 'user123'
-    })
-    await expect(mw(ctx, next)).rejects.toThrow('options.binding must be a KV namespace name or return a Cloudflare KV namespace exposing get() and put()')
   })
 })

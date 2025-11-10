@@ -7,13 +7,3 @@
 export function assert (condition, message) {
   if (!condition) throw new TypeError(message)
 }
-
-/**
- * Get binding from context
- * @param {any} ctx - Hoa context
- * @param {any} binding - Binding name (string) or factory function
- * @returns {any} The resolved binding
- */
-export function getBinding (ctx, binding) {
-  return typeof binding === 'string' ? ctx.env[binding] : binding(ctx)
-}

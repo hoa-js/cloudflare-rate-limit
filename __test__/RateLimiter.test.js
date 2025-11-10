@@ -16,8 +16,9 @@ describe('RateLimiter header semantics', () => {
   test('error handler sets 429 on rate limit exceeded', async () => {
     jest.resetModules()
     const { RateLimiter } = await import('../src/RateLimiter.js')
-    const binding = () => createMockBinding(false)
+    const mockBinding = createMockBinding(false)
     const ctx = {
+      env: { RATE_LIMITER: mockBinding },
       req: {},
       res: { set: () => {} },
       thrown: null,
@@ -25,7 +26,7 @@ describe('RateLimiter header semantics', () => {
     }
     const next = jest.fn(async () => {})
     const mw = RateLimiter({
-      binding,
+      binding: 'RATE_LIMITER',
       keyGenerator: () => 'ip'
     })
     await mw(ctx, next)
@@ -36,12 +37,12 @@ describe('RateLimiter header semantics', () => {
   test('success handler runs after next when allowed', async () => {
     jest.resetModules()
     const { RateLimiter } = await import('../src/RateLimiter.js')
-    const binding = () => createMockBinding(true)
+    const mockBinding = createMockBinding(true)
     let successRan = false
-    const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
+    const ctx = { env: { RATE_LIMITER: mockBinding }, req: {}, res: { set: () => {} }, throw: () => {} }
     const next = jest.fn(async () => {})
     const mw = RateLimiter({
-      binding,
+      binding: 'RATE_LIMITER',
       keyGenerator: () => 'ip',
       successHandler: (c) => { successRan = true }
     })
@@ -53,12 +54,12 @@ describe('RateLimiter header semantics', () => {
   test('success handler still runs when next throws', async () => {
     jest.resetModules()
     const { RateLimiter } = await import('../src/RateLimiter.js')
-    const binding = () => createMockBinding(true)
+    const mockBinding = createMockBinding(true)
     let successRan = false
-    const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
+    const ctx = { env: { RATE_LIMITER: mockBinding }, req: {}, res: { set: () => {} }, throw: () => {} }
     const next = jest.fn(async () => { throw new Error('boom') })
     const mw = RateLimiter({
-      binding,
+      binding: 'RATE_LIMITER',
       keyGenerator: () => 'ip',
       successHandler: () => { successRan = true }
     })
@@ -69,10 +70,10 @@ describe('RateLimiter header semantics', () => {
   test('uses default success handler (no-op) on success path', async () => {
     jest.resetModules()
     const { RateLimiter } = await import('../src/RateLimiter.js')
-    const binding = () => createMockBinding(true)
-    const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
+    const mockBinding = createMockBinding(true)
+    const ctx = { env: { RATE_LIMITER: mockBinding }, req: {}, res: { set: () => {} }, throw: () => {} }
     const next = jest.fn(async () => {})
-    const mw = RateLimiter({ binding, keyGenerator: () => 'ip' })
+    const mw = RateLimiter({ binding: 'RATE_LIMITER', keyGenerator: () => 'ip' })
     await mw(ctx, next)
     expect(next).toHaveBeenCalledTimes(1)
   })
@@ -82,32 +83,30 @@ describe('RateLimiter runtime branches', () => {
   test('skips rate limit when key is falsy', async () => {
     jest.resetModules()
     const { RateLimiter } = await import('../src/RateLimiter.js')
-    const binding = jest.fn(() => createMockBinding(true))
     const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
     const next = jest.fn(async () => {})
-    const mw = RateLimiter({ binding, keyGenerator: () => null })
+    const mw = RateLimiter({ binding: 'RATE_LIMITER', keyGenerator: () => null })
     await mw(ctx, next)
     expect(next).toHaveBeenCalledTimes(1)
-    expect(binding).not.toHaveBeenCalled()
   })
 
   test.each([
-    ['binding', { binding: /** @type {any} */ (123), keyGenerator: () => 'ip' }, 'options.binding must be a string or a function'],
-    ['keyGenerator', { binding: () => createMockBinding(true), keyGenerator: /** @type {any} */ ('ip') }, 'options.keyGenerator must be a function'],
-    ['successHandler', { binding: () => createMockBinding(true), keyGenerator: () => 'ip', successHandler: /** @type {any} */ (123) }, 'options.successHandler must be a function'],
-    ['errorHandler', { binding: () => createMockBinding(true), keyGenerator: () => 'ip', errorHandler: /** @type {any} */ ({}) }, 'options.errorHandler must be a function']
+    ['binding', { binding: /** @type {any} */ (123), keyGenerator: () => 'ip' }, 'options.binding must be a string'],
+    ['keyGenerator', { binding: 'RATE_LIMITER', keyGenerator: /** @type {any} */ ('ip') }, 'options.keyGenerator must be a function'],
+    ['successHandler', { binding: 'RATE_LIMITER', keyGenerator: () => 'ip', successHandler: /** @type {any} */ (123) }, 'options.successHandler must be a function'],
+    ['errorHandler', { binding: 'RATE_LIMITER', keyGenerator: () => 'ip', errorHandler: /** @type {any} */ ({}) }, 'options.errorHandler must be a function']
   ])('throws when %s is invalid', async (field, options, expectedError) => {
     const { RateLimiter } = await import('../src/RateLimiter.js')
     expect(() => RateLimiter(options)).toThrow(expectedError)
   })
 
-  test('throws when binding returns invalid binding', async () => {
+  test('throws when binding resolves to invalid binding', async () => {
     const { RateLimiter } = await import('../src/RateLimiter.js')
-    const options = { binding: () => null, keyGenerator: () => 'ip' }
+    const options = { binding: 'RATE_LIMITER', keyGenerator: () => 'ip' }
     const mw = RateLimiter(options)
-    const ctx = { req: {}, res: { set: () => {} }, throw: () => {} }
+    const ctx = { env: { RATE_LIMITER: null }, req: {}, res: { set: () => {} }, throw: () => {} }
     const next = jest.fn(async () => {})
-    await expect(mw(ctx, next)).rejects.toThrow('options.binding must be a Rate Limiter binding name or return a Cloudflare Rate Limiter binding exposing limit()')
+    await expect(mw(ctx, next)).rejects.toThrow('options.binding must be a Rate Limiter binding name that resolves to a Cloudflare Rate Limiter binding exposing limit()')
   })
 })
 
@@ -119,7 +118,7 @@ describe('RateLimiter options validation', () => {
 
   test('throws when called without options', async () => {
     const { RateLimiter } = await import('../src/RateLimiter.js')
-    expect(() => RateLimiter()).toThrow('options.binding must be a string or a function')
+    expect(() => RateLimiter()).toThrow('options.binding must be a string')
   })
 })
 
@@ -155,7 +154,7 @@ describe('RateLimiter binding as string', () => {
       binding: 'NONEXISTENT_LIMITER',
       keyGenerator: () => 'user123'
     })
-    await expect(mw(ctx, next)).rejects.toThrow('options.binding must be a Rate Limiter binding name or return a Cloudflare Rate Limiter binding exposing limit()')
+    await expect(mw(ctx, next)).rejects.toThrow('options.binding must be a Rate Limiter binding name that resolves to a Cloudflare Rate Limiter binding exposing limit()')
   })
 
   test('handles rate limit exceeded with string binding', async () => {

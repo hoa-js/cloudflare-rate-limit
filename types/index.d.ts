@@ -1,7 +1,7 @@
 import type { HoaContext, HoaMiddleware } from 'hoa'
 
 export interface KVRateLimiterOptions {
-  binding: string | ((ctx: HoaContext) => any)
+  binding: string
   prefix?: string
   limit: number
   period: number
@@ -12,7 +12,7 @@ export interface KVRateLimiterOptions {
 }
 
 export interface RateLimiterOptions {
-  binding: string | ((ctx: HoaContext) => any)
+  binding: string
   keyGenerator: (ctx: HoaContext) => string | null | undefined | false
   successHandler?: (ctx: HoaContext) => void
   errorHandler?: (ctx: HoaContext) => void
